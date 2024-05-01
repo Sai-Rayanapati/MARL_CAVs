@@ -1,5 +1,6 @@
 from MAACKTR import JointACKTR as MAACKTR
 from common.utils import agg_double_list, copy_file_akctr, init_dir
+from common.logger import get_logger
 
 import sys
 sys.path.append("../highway-env")
@@ -56,6 +57,8 @@ def train(args):
     else:
         model_dir = dirs['models']
 
+    logger = get_logger(output_dir+"/log.txt")
+
     # model configs
     BATCH_SIZE = config.getint('MODEL_CONFIG', 'BATCH_SIZE')
     MEMORY_CAPACITY = config.getint('MODEL_CONFIG', 'MEMORY_CAPACITY')
@@ -77,7 +80,7 @@ def train(args):
     reward_scale = config.getfloat('TRAIN_CONFIG', 'reward_scale')
 
     # init env
-    env = gym.make('merge-multi-agent-v0')
+    env = gym.make('multi-merge-multi-agent-v0')
     env.config['seed'] = config.getint('ENV_CONFIG', 'seed')
     env.config['simulation_frequency'] = config.getint('ENV_CONFIG', 'simulation_frequency')
     env.config['duration'] = config.getint('ENV_CONFIG', 'duration')
@@ -93,7 +96,7 @@ def train(args):
 
     assert env.T % ROLL_OUT_N_STEPS == 0
 
-    env_eval = gym.make('merge-multi-agent-v0')
+    env_eval = gym.make('multi-merge-multi-agent-v0')
     env_eval.config['seed'] = config.getint('ENV_CONFIG', 'seed') + 1
     env_eval.config['simulation_frequency'] = config.getint('ENV_CONFIG', 'simulation_frequency')
     env_eval.config['duration'] = config.getint('ENV_CONFIG', 'duration')
@@ -123,27 +126,58 @@ def train(args):
     maacktr.load(model_dir, train_mode=True)
     env.seed = env.config['seed']
     env.unwrapped.seed = env.config['seed']
-    eval_rewards = []
+    eval_episodes, episode_rewards, avg_rewards, std_rewards = [], [], [], []
     while maacktr.n_episodes < MAX_EPISODES:
         maacktr.interact()
         if maacktr.n_episodes >= EPISODES_BEFORE_TRAIN:
             maacktr.train()
+
+        log_str = "Episode "+ str(maacktr.n_episodes)+ " has completed"
+        logger.info(log_str)
+
         if maacktr.episode_done and ((maacktr.n_episodes + 1) % EVAL_INTERVAL == 0):
             rewards, _, _, _ = maacktr.evaluation(env_eval, dirs['train_videos'], EVAL_EPISODES)
-            rewards_mu, rewards_std = agg_double_list(rewards)
-            print("Episode %d, Average Reward %.2f" % (maacktr.n_episodes + 1, rewards_mu))
-            eval_rewards.append(rewards_mu)
+            episode_reward, avg_reward, std_reward = agg_double_list(rewards)
+            log_str = "Eval Episode %d, Average Reward %.2f" % (maacktr.n_episodes + 1, avg_reward)
+            logger.info(log_str)
+
+            eval_episodes.append(maacktr.n_episodes + 1)
+            episode_rewards.append(episode_reward)
+            avg_rewards.append(avg_reward)
+            std_rewards.append(std_reward)
+
             # save the model
             maacktr.save(dirs['models'], maacktr.n_episodes + 1)
+
+    save_dict = {'nb_episodes': MAX_EPISODES,
+                 'eval_episodes': eval_episodes,
+                 'episode_rewards': episode_rewards,
+                 'avg_rewards': avg_rewards,
+                 'std_rewards': std_rewards,
+                 'info': 'maactr'+now}
+    
+    np.save(file=output_dir+'/eval_results.npy', arr=save_dict)
+
+    import pandas as pd
+
+    df = pd.DataFrame({
+        'nb_episodes': MAX_EPISODES,
+        'eval_episodes': eval_episodes,
+        'episode_rewards': episode_rewards,
+        'avg_rewards': avg_rewards,
+        'std_rewards': std_rewards,
+    })
+
+    df.to_csv(f"{output_dir}/episodes_rewards_{MAX_EPISODES}.csv", index=False)
 
     # save the model
     maacktr.save(dirs['models'], MAX_EPISODES + 2)
     plt.figure()
-    plt.plot(eval_rewards)
+    plt.plot(eval_episodes, avg_rewards)
     plt.xlabel("Episode")
     plt.ylabel("Average Reward")
     plt.legend(["MAACKTR"])
-    plt.show()
+    plt.savefig(output_dir+"/vis_" + str(MAX_EPISODES) + ".png")
 
 
 def evaluate(args):
@@ -175,8 +209,8 @@ def evaluate(args):
     reward_scale = config.getfloat('TRAIN_CONFIG', 'reward_scale')
 
     # init env
-    env = gym.make('merge-multi-agent-v0')
-    env.config['seed'] = config.getint('ENV_CONFIG', 'seed')
+    env = gym.make('multi-merge-multi-agent-v0')
+    #env.config['seed'] = config.getint('ENV_CONFIG', 'seed')
     env.config['simulation_frequency'] = config.getint('ENV_CONFIG', 'simulation_frequency')
     env.config['duration'] = config.getint('ENV_CONFIG', 'duration')
     env.config['policy_frequency'] = config.getint('ENV_CONFIG', 'policy_frequency')

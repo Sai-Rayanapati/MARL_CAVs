@@ -16,7 +16,7 @@ def smooth(x, timestamps=9):
 
 
 def plot_reward():
-    reward_hard_bs = np.load('/home/orange/PycharmProjects/MARL_AD_U/MARL/results/Apr-11_15:14:34/eval_rewards.npy')
+    reward_hard_bs = np.load('/Users/subbu/Desktop/MARL/MARL_CAVs/MARL/results/Apr_18_19_41_09/eval_results.npy')
     # reward_hard_bs = np.load('/home/orange/PycharmProjects/MARL_AD_U/MARL/episode_rewards.npy')
     # reward_lstm = np.load(
     #     '/home/dong/PycharmProjects/MARL_AD_U_v0/MARL/results/Mar-20_00:38:36/episode_rewards.npy')

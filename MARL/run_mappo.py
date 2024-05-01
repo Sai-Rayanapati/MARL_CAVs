@@ -1,5 +1,7 @@
 from MAPPO import MAPPO
 from common.utils import agg_double_list, copy_file_ppo, init_dir
+from common.logger import get_logger
+
 import sys
 sys.path.append("../highway-env")
 
@@ -49,6 +51,8 @@ def train(args):
     output_dir = base_dir + now
     dirs = init_dir(output_dir)
     copy_file_ppo(dirs['configs'])
+
+    logger = get_logger(output_dir+"/log.txt")    
 
     if os.path.exists(args.model_dir):
         model_dir = args.model_dir
@@ -127,7 +131,7 @@ def train(args):
     mappo.load(model_dir, train_mode=True)
     env.seed = env.config['seed']
     env.unwrapped.seed = env.config['seed']
-    eval_rewards = []
+    eval_episodes, episode_rewards, avg_rewards, std_rewards = [], [], [], []
 
     while mappo.n_episodes < MAX_EPISODES:
         mappo.interact()
@@ -135,21 +139,49 @@ def train(args):
             mappo.train()
         if mappo.episode_done and ((mappo.n_episodes + 1) % EVAL_INTERVAL == 0):
             rewards, _, _, _ = mappo.evaluation(env_eval, dirs['train_videos'], EVAL_EPISODES)
-            rewards_mu, rewards_std = agg_double_list(rewards)
-            print("Episode %d, Average Reward %.2f" % (mappo.n_episodes + 1, rewards_mu))
-            eval_rewards.append(rewards_mu)
+            episode_reward, avg_reward, std_reward = agg_double_list(rewards)
+            log_str = "Episode %d, Average Reward %.2f" % (mappo.n_episodes + 1, avg_reward)
+            logger.info(log_str)
+
+            eval_episodes.append(mappo.n_episodes + 1)
+            episode_rewards.append(episode_reward)
+            avg_rewards.append(avg_reward)
+            std_rewards.append(std_reward)
+
             # save the model
             mappo.save(dirs['models'], mappo.n_episodes + 1)
 
+
+    save_dict = {'nb_episodes': MAX_EPISODES,
+                 'eval_episodes': eval_episodes,
+                 'episode_rewards': episode_rewards,
+                 'avg_rewards': avg_rewards,
+                 'std_rewards': std_rewards,
+                 'info': 'mappo'+now}
+    
+    np.save(file=output_dir+'/eval_results.npy', arr=save_dict)
+
+    import pandas as pd
+
+    df = pd.DataFrame({
+        'nb_episodes': MAX_EPISODES,
+        'eval_episodes': eval_episodes,
+        'episode_rewards': episode_rewards,
+        'avg_rewards': avg_rewards,
+        'std_rewards': std_rewards,
+    })
+
+    df.to_csv(f"{output_dir}/episodes_rewards_{MAX_EPISODES}.csv", index=False)
+
     # save the model
     mappo.save(dirs['models'], MAX_EPISODES + 2)
-
     plt.figure()
-    plt.plot(eval_rewards)
+    plt.plot(eval_episodes, avg_rewards)
     plt.xlabel("Episode")
     plt.ylabel("Average Reward")
     plt.legend(["MAPPO"])
-    plt.show()
+    plt.savefig(output_dir+"/vis_" + str(MAX_EPISODES) + ".png")
+
 
 
 def evaluate(args):

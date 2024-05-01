@@ -48,10 +48,12 @@ class IDMVehicle(ControlledVehicle):
                  target_speed: float = None,
                  route: Route = None,
                  enable_lane_change: bool = True,
-                 timer: float = None):
+                 timer: float = None,
+                 verbose:bool = False):
         super().__init__(road, position, heading, speed, target_lane_index, target_speed, route)
         self.enable_lane_change = enable_lane_change
         self.timer = timer or (np.sum(self.position) * np.pi) % self.LANE_CHANGE_DELAY
+        self.verbose = verbose
 
     def randomize_behavior(self):
         pass
@@ -86,6 +88,9 @@ class IDMVehicle(ControlledVehicle):
         front_vehicle, rear_vehicle = self.road.neighbour_vehicles(self)
         # Lateral: MOBIL
         self.follow_road()
+        # if self.verbose:
+        #     print("1 ",self.lane_index)
+        #     print("2 ", self.target_lane_index)        
         if self.enable_lane_change:
             self.change_lane_policy()
         action['steering'] = self.steering_control(self.target_lane_index)
@@ -220,6 +225,7 @@ class IDMVehicle(ControlledVehicle):
                 continue
             # Does the MOBIL model recommend a lane change?
             if self.mobil(lane_index):
+                #print('Mobil recommends a lane change')
                 self.target_lane_index = lane_index
 
     def mobil(self, lane_index: LaneIndex) -> bool:
@@ -259,6 +265,8 @@ class IDMVehicle(ControlledVehicle):
             old_following_pred_a = self.acceleration(ego_vehicle=old_following, front_vehicle=old_preceding)
             jerk = self_pred_a - self_a + self.POLITENESS * (new_following_pred_a - new_following_a
                                                              + old_following_pred_a - old_following_a)
+            if self_a == self_pred_a:
+                jerk += 0.11
             if jerk < self.LANE_CHANGE_MIN_ACC_GAIN:
                 return False
 

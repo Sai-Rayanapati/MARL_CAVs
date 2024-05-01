@@ -30,7 +30,7 @@ class AddBias(nn.Module):
 
 
 def index_to_one_hot(index, dim):
-    if isinstance(index, np.int) or isinstance(index, np.int64):
+    if isinstance(index, np.int) or isinstance(index, np.int64) or isinstance(index, np.int32):
         one_hot = np.zeros(dim)
         one_hot[index] = 1.
     else:
@@ -63,7 +63,7 @@ def agg_double_list(l):
     s = [np.sum(np.array(l_i), 0) for l_i in l]
     s_mu = np.mean(np.array(s), 0)
     s_std = np.std(np.array(s), 0)
-    return s_mu, s_std
+    return s, s_mu, s_std
 
 
 class VideoRecorder:
@@ -139,6 +139,22 @@ def copy_file_akctr(tar_dir):
     models = 'MAACKTR.py'
     copy(models, tar_dir)
     main = 'run_maacktr.py'
+    copy(main, tar_dir)
+    c1 = 'single_agent/Agent_common.py'
+    copy(c1, tar_dir)
+    c2 = 'single_agent/Memory_common.py'
+    copy(c2, tar_dir)
+    c3 = 'single_agent/Model_common.py'
+    copy(c3, tar_dir)
+
+
+def copy_file_dqn(tar_dir):
+    env2 = 'configs/configs_dqn.ini'
+    copy(env2, tar_dir)
+
+    models = 'MADQN.py'
+    copy(models, tar_dir)
+    main = 'run_madqn.py'
     copy(main, tar_dir)
     c1 = 'single_agent/Agent_common.py'
     copy(c1, tar_dir)

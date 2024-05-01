@@ -33,10 +33,12 @@ class ControlledVehicle(Vehicle):
                  position: Vector,
                  heading: float = 0,
                  speed: float = 0,
+                 enable_lane_change:bool = False,
                  target_lane_index: LaneIndex = None,
                  target_speed: float = None,
                  route: Route = None):
         super().__init__(road, position, heading, speed)
+        self.enable_lane_change = enable_lane_change
         self.target_lane_index = target_lane_index or self.lane_index
         self.target_speed = target_speed or self.speed
         self.route = route
@@ -86,7 +88,7 @@ class ControlledVehicle(Vehicle):
             self.target_speed += self.DELTA_SPEED
         elif action == "SLOWER":
             self.target_speed -= self.DELTA_SPEED
-        elif action == "LANE_RIGHT":
+        elif self.enable_lane_change and action == "LANE_RIGHT":
             _from, _to, _id = self.target_lane_index
             target_lane_index = _from, _to, np.clip(_id + 1, 0, len(self.road.network.graph[_from][_to]) - 1)
             if self.road.network.get_lane(target_lane_index).is_reachable_from(self.position):
@@ -208,10 +210,11 @@ class MDPVehicle(ControlledVehicle):
                  position: List[float],
                  heading: float = 0,
                  speed: float = 0,
+                 enable_lane_change: bool = False,
                  target_lane_index: LaneIndex = None,
                  target_speed: float = None,
                  route: Route = None) -> None:
-        super().__init__(road, position, heading, speed, target_lane_index, target_speed, route)
+        super().__init__(road, position, heading, speed, enable_lane_change, target_lane_index, target_speed, route)
         self.speed_index = self.speed_to_index(self.target_speed)
         self.target_speed = self.index_to_speed(self.speed_index)
 

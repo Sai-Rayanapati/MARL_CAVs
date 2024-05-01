@@ -1,6 +1,6 @@
 numpy==1.19.0
-pandas
-gym
-matplotlib
-opencv-python
-pygame
+pandas==1.1.5
+gym==0.14.0
+matplotlib==3.3.4
+pygame==2.5.2
+opencv-python==4.4.0.40

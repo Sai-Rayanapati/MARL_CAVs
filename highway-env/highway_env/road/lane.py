@@ -92,6 +92,7 @@ class AbstractLane(object):
     def after_end(self, position: np.ndarray, longitudinal: float = None, lateral: float = None) -> bool:
         if not longitudinal:
             longitudinal, _ = self.local_coordinates(position)
+            #longitudinal += 15
         return longitudinal > self.length - self.VEHICLE_LENGTH / 2
 
     def distance(self, position: np.ndarray):
